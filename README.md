@@ -1,52 +1,41 @@
 # Reasoning-Intensive Retrieval
 
-A search system that finds the right reference passages for **reasoning-heavy biology questions**.
-Built for the **Olo Academy Reasoning-Intensive Retrieval** Kaggle competition, part of the AI Engineering Bootcamp (AIEP), Olo Academy in partnership with MCIT.
+> *"Why do moths fly toward light?"* The passage that answers it talks about **phototaxis**, a word the question never uses. Keyword search can't find it. This project teaches search to **think about the question first**.
 
-**Result: ranked 3rd of 21 teams, leaderboard score 0.60.** Team of 2.
+🏆 **3rd of 21 teams** · Olo Academy Kaggle competition (AIEP bootcamp, Olo Academy × MCIT)
+📈 **nDCG@10: ~11 → ~45** on training questions (BM25 → LLM-expanded search) · **0.60** on the leaderboard
 
-## The problem
+## The challenge
+- Find the 10 best passages for each biology question in a **49,000-passage** corpus
+- Scored by **nDCG@10**: the right passage near the top counts most
+- The answer often shares almost no words with the question
 
-- A user asks a biology question; the system must return the 10 most relevant passages from a corpus of about **49,000** passages.
-- **Metric:** nDCG@10 (relevant passages near the top of the list count more).
-- **The hard part:** the correct passage often shares almost no words with the question. A question about why insects fly toward light needs a passage about *phototaxis*, which the question never mentions. Plain keyword search misses it.
-
-## Approach
-
-| Step | What it does | Training nDCG@10 |
-|---|---|---|
-| 1. BM25 | Keyword search (implemented from scratch with scikit-learn) | ~11 |
-| 2. LLM query expansion | **Qwen3-4B** rewrites each question as a short scientific explanation with the key terms, then we search with that text | **~45** |
-| 3. Semantic search | **Qwen3-Embedding-0.6B** embeddings, so passages match by meaning, not only by words | added as a channel |
-| 4. Fusion | Normalized scores from keyword and semantic search, with weights tuned on training questions | **0.60 on the leaderboard** |
-| 5. Reranker (tested) | bge-reranker-v2-m3 on the top 100 passages | lowered the score, so it was **not used** |
-
-### Key decisions
-- **Explain the question before searching:** the biggest gain came from letting the LLM explain the question in scientific terms. The LLM is used to describe, not to answer.
-- **Match training to test:** training questions are long and test questions are short, so training questions were shortened to the test length before choosing the fusion weights.
-- **Keep only what helps:** the reranker was tested and dropped because it reduced the score on training questions.
-
-## How to run
-
-1. Open the notebook in Kaggle and attach the competition data.
-2. Settings: **Accelerator: GPU T4 x2** and **Internet: On** (to download the models).
-3. Run the cells in order. The notebook writes `submission.csv`.
-
+## How it works
 ```
-pip install -r requirements.txt
+question ──► Qwen3-4B writes a short scientific explanation
+               │
+               ├──► BM25 keyword search ─────┐
+               └──► Qwen3-Embedding search ──┴──► weighted fusion ──► top 10
 ```
 
-## Files
+| Step | Result |
+|---|---|
+| BM25 on the raw question | ~11 nDCG@10 |
+| + **LLM query expansion** (Qwen3-4B) | **~45** |
+| + semantic search + tuned fusion | **0.60** leaderboard |
+| Reranker (bge-reranker-v2-m3) | lowered the score → **dropped** |
 
-- `reasoning_intensive_retrieval.ipynb`: full pipeline (comments in Arabic)
-- `requirements.txt`: Python packages
+**Design choices**
+- **The LLM explains, it doesn't answer:** its job is to add the scientific terms the passages use.
+- **Match train to test:** training questions were shortened to test length before tuning the fusion weights.
+- **Keep only what helps:** the reranker looked promising but hurt the score, so it was cut.
 
-Competition data is not included.
+## Run it
+1. Open `reasoning_intensive_retrieval.ipynb` on Kaggle and attach the competition data.
+2. Settings: **GPU T4 x2**, **Internet on** (to download the models). Run all cells.
 
-## Tech stack
+**Stack:** Python · Qwen3-4B · Qwen3-Embedding · sentence-transformers · Hugging Face · BM25 · PyTorch
 
-Python, BM25, Qwen3-4B (LLM), Qwen3-Embedding, sentence-transformers, Hugging Face Transformers, PyTorch, scikit-learn, Kaggle Notebooks (GPU)
-
-## Author
+Competition data is not included. Team of 2.
 
 **Sarah Al-Bahesh** · [LinkedIn](https://www.linkedin.com/in/sarah-albahesh) · [GitHub](https://github.com/saravii7)
